@@ -1,17 +1,13 @@
-import { Link } from 'react-router-dom';
-
 const services = [
   {
     name: 'Job Match Service',
     description: 'Analyze job opportunities against your professional profile using AI.',
-    path: '/job-match',
-    port: 5136,
+    path: '/job-match/',
   },
   {
     name: 'Application Tracker',
     description: 'Track your job applications, interviews, and status updates.',
-    path: '/applications',
-    port: 5002,
+    path: '/applications/',
   },
 ];
 
@@ -27,7 +23,7 @@ export default function App() {
         {services.map((svc) => (
           <a
             key={svc.name}
-            href={`http://localhost:${svc.port}`}
+            href={svc.path}
             style={styles.card}
             onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-4px)')}
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
