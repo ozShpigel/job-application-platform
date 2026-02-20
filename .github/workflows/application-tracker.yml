@@ -3,7 +3,12 @@ name: Application Tracker
 on:
   push:
     branches: [main]
-    paths: ['ApplicationTracker/**']
+    paths:
+      - 'ApplicationTracker/**'
+      - '.github/workflows/application-tracker.yml'
+
+env:
+  IMAGE_NAME: application-tracker
 
 jobs:
   build-and-push:
@@ -13,6 +18,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Set image owner lowercase
+        run: echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -23,4 +30,4 @@ jobs:
           context: .
           file: ApplicationTracker/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/application-tracker:latest
+          tags: ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:latest
