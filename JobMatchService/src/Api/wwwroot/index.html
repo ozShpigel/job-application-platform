@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Match Service</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #f8fafc; }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; font-size: 0.9rem; }
+        textarea { width: 100%; min-height: 250px; padding: 1rem; border: 1px solid #334155; border-radius: 8px; background: #1e293b; color: #e2e8f0; font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none; }
+        textarea:focus { border-color: #6366f1; }
+        textarea::placeholder { color: #64748b; }
+        button { margin-top: 1rem; padding: 0.75rem 2rem; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+        button:hover { background: #4f46e5; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+        .result { margin-top: 2rem; }
+        .loading { color: #94a3b8; font-style: italic; }
+        .error { background: #7f1d1d; border: 1px solid #991b1b; padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; margin-top: 1rem; }
+        .verdict { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .verdict.STRONG_YES, .verdict.YES { color: #4ade80; }
+        .verdict.MAYBE { color: #fbbf24; }
+        .verdict.NO, .verdict.STRONG_NO { color: #f87171; }
+        .verdict.INSUFFICIENT_DATA { color: #94a3b8; }
+        .score { font-size: 1.1rem; color: #94a3b8; }
+        .section { margin-top: 1.5rem; }
+        .section h3 { font-size: 1rem; color: #cbd5e1; margin-bottom: 0.5rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+        .score-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .bar-bg { flex: 1; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 4px; }
+        .bar-fill.green { background: #4ade80; }
+        .bar-fill.yellow { background: #fbbf24; }
+        .bar-fill.red { background: #f87171; }
+        .label { min-width: 140px; font-size: 0.85rem; color: #94a3b8; }
+        .score-num { font-size: 0.85rem; color: #cbd5e1; min-width: 50px; text-align: right; }
+        ul { padding-left: 1.25rem; margin-top: 0.5rem; }
+        li { font-size: 0.85rem; margin-bottom: 0.35rem; color: #cbd5e1; }
+        li.positive::marker { color: #4ade80; }
+        li.negative::marker { color: #f87171; }
+        .assessment { font-size: 0.9rem; line-height: 1.6; color: #cbd5e1; white-space: pre-wrap; }
+        .flags { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .flag { padding: 0.3rem 0.7rem; border-radius: 4px; font-size: 0.8rem; }
+        .flag.green { background: #064e3b; color: #6ee7b7; }
+        .flag.red { background: #7f1d1d; color: #fca5a5; }
+        .save-tracker { background: #1e293b; border: 2px solid #6366f1; border-radius: 8px; padding: 1.5rem; margin-top: 1.5rem; }
+        .save-tracker h3 { color: #f8fafc; margin-bottom: 0.75rem; font-size: 1.1rem; }
+        .save-tracker p { color: #94a3b8; margin-bottom: 1rem; font-size: 0.9rem; }
+        .save-tracker .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .save-tracker input[type="text"] { width: 100%; padding: 0.6rem 0.8rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 0.9rem; }
+        .save-tracker input[type="text"]:focus { border-color: #6366f1; outline: none; }
+        .save-tracker label.radio { display: block; padding: 0.5rem 0; color: #cbd5e1; font-size: 0.9rem; cursor: pointer; }
+        .save-tracker input[type="radio"] { margin-left: 0.5rem; }
+        .save-tracker .save-btn { background: #059669; padding: 0.7rem 1.75rem; font-size: 0.95rem; }
+        .save-tracker .save-btn:hover { background: #047857; }
+        .save-result { margin-top: 0.75rem; font-size: 0.9rem; }
+        .save-result.success { color: #4ade80; }
+        .save-result.error { color: #f87171; }
+        .save-result.warning { color: #fbbf24; }
+        .tracker-link { color: #6366f1; text-decoration: underline; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Job Match Service</h1>
+        <p class="subtitle">Paste a job description below to analyze the match</p>
+
+        <textarea id="jobDescription" placeholder="Paste the full job description here..."></textarea>
+        <button id="analyzeBtn" onclick="analyze()">Analyze Match</button>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        let currentAnalysis = null;
+        let currentJobDescription = null;
+
+        async function analyze() {
+            const desc = document.getElementById('jobDescription').value.trim();
+            if (!desc) return;
+
+            currentJobDescription = desc;
+            currentAnalysis = null;
+
+            const btn = document.getElementById('analyzeBtn');
+            const result = document.getElementById('result');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+            result.innerHTML = '<p class="loading">Calling Claude API... this takes 15-30 seconds</p>';
+
+            try {
+                const res = await fetch('/api/match', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jobDescription: desc })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    result.innerHTML = `<div class="error">${err.detail || err.error || 'Request failed'}</div>`;
+                    return;
+                }
+
+                const data = await res.json();
+                currentAnalysis = data;
+                result.innerHTML = renderResult(data) + renderSaveToTracker();
+            } catch (e) {
+                result.innerHTML = `<div class="error">Error: ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Analyze Match';
+            }
+        }
+
+        function renderSaveToTracker() {
+            return `
+                <div class="save-tracker" id="saveSection">
+                    <h3>Save to Application Tracker</h3>
+                    <p>Save this job to your tracker for follow-up</p>
+                    <div class="form-row">
+                        <div>
+                            <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.3rem">Job Title</label>
+                            <input type="text" id="save-title" placeholder="Job title" value="${currentAnalysis?.jobTitle || ''}">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.3rem">Company</label>
+                            <input type="text" id="save-company" placeholder="Company name" value="${currentAnalysis?.company || ''}">
+                        </div>
+                    </div>
+                    <label class="radio">
+                        <input type="radio" name="saveStatus" value="analyzing" checked>
+                        Just analyzed (haven't applied yet)
+                    </label>
+                    <label class="radio">
+                        <input type="radio" name="saveStatus" value="applied">
+                        Already sent CV
+                    </label>
+                    <br>
+                    <button class="save-btn" onclick="saveToTracker()">Save to Tracker</button>
+                    <div id="saveResult" class="save-result"></div>
+                </div>
+            `;
+        }
+
+        async function saveToTracker() {
+            const title = document.getElementById('save-title').value.trim();
+            const company = document.getElementById('save-company').value.trim();
+            const resultDiv = document.getElementById('saveResult');
+
+            if (!title || !company) {
+                resultDiv.className = 'save-result error';
+                resultDiv.textContent = 'Please fill in job title and company';
+                return;
+            }
+
+            const cvSent = document.querySelector('input[name="saveStatus"]:checked').value === 'applied';
+            resultDiv.className = 'save-result';
+            resultDiv.textContent = 'Saving...';
+
+            try {
+                const res = await fetch('/api/match/save-to-tracker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jobTitle: title,
+                        company: company,
+                        matchScore: currentAnalysis?.overallScore,
+                        matchVerdict: currentAnalysis?.verdict,
+                        jobDescription: currentJobDescription,
+                        matchAnalysis: JSON.stringify(currentAnalysis),
+                        cvSent: cvSent
+                    })
+                });
+
+                if (res.status === 409) {
+                    const data = await res.json();
+                    resultDiv.className = 'save-result warning';
+                    resultDiv.innerHTML = data.message || 'Application already exists in tracker';
+                    return;
+                }
+
+                if (res.ok) {
+                    const data = await res.json();
+                    resultDiv.className = 'save-result success';
+                    resultDiv.innerHTML = `${data.message} &nbsp; <a class="tracker-link" href="http://localhost:5002" target="_blank">Open Tracker</a>`;
+                } else {
+                    resultDiv.className = 'save-result error';
+                    resultDiv.textContent = 'Error saving. Make sure ApplicationTracker is running on port 5002.';
+                }
+            } catch (e) {
+                resultDiv.className = 'save-result error';
+                resultDiv.textContent = 'Cannot connect to ApplicationTracker. Make sure it is running on http://localhost:5002';
+            }
+        }
+
+        function barColor(score, max) {
+            if (score == null || max == null || max === 0) return 'red';
+            const pct = score / max;
+            if (pct >= 0.6) return 'green';
+            if (pct >= 0.4) return 'yellow';
+            return 'red';
+        }
+
+        function renderScoreBar(label, score, max) {
+            const hasScore = score != null && max != null && max > 0;
+            const pct = hasScore ? (score / max * 100).toFixed(0) : '0';
+            const color = barColor(score, max);
+            const scoreText = score != null ? score : 'N/A';
+            const maxText = max != null ? max : '?';
+            return `<div class="score-bar">
+                <span class="label">${label}</span>
+                <div class="bar-bg"><div class="bar-fill ${color}" style="width:${pct}%"></div></div>
+                <span class="score-num">${scoreText}/${maxText}</span>
+            </div>`;
+        }
+
+        function renderList(items, cls) {
+            if (!items || items.length === 0) return '';
+            return '<ul>' + items.map(i => `<li class="${cls || ''}">${i}</li>`).join('') + '</ul>';
+        }
+
+        function renderResult(d) {
+            const b = d.breakdown;
+            return `
+                <div class="card">
+                    <div class="verdict ${d.verdict}">${d.verdict.replace('_', ' ')}</div>
+                    <div class="score">Overall Score: ${d.overallScore ?? 'N/A'} / 100</div>
+                </div>
+
+                <div class="card">
+                    <h3>Breakdown</h3>
+                    ${renderScoreBar('Technical', b.technical.score, b.technical.maxScore)}
+                    ${renderScoreBar('Cultural', b.cultural.score, b.cultural.maxScore)}
+                    ${renderScoreBar('Role Fit', b.roleCharacteristics.score, b.roleCharacteristics.maxScore)}
+                </div>
+
+                <div class="card section">
+                    <h3>Technical</h3>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Strengths</p>
+                    ${renderList(b.technical.strengths, 'positive')}
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Gaps</p>
+                    ${renderList(b.technical.gaps, 'negative')}
+                </div>
+
+                <div class="card section">
+                    <h3>Cultural</h3>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Positive Signals</p>
+                    ${renderList(b.cultural.positiveSignals, 'positive')}
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Concerns</p>
+                    ${renderList(b.cultural.concerns, 'negative')}
+                </div>
+
+                <div class="card section">
+                    <h3>Role Characteristics</h3>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Opportunities</p>
+                    ${renderList(b.roleCharacteristics.opportunities, 'positive')}
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Risks</p>
+                    ${renderList(b.roleCharacteristics.risks, 'negative')}
+                </div>
+
+                <div class="card section">
+                    <h3>Recommendation</h3>
+                    <p style="font-size:0.95rem;font-weight:600;color:${d.recommendation.shouldApply ? '#4ade80' : '#f87171'};margin-bottom:0.75rem">
+                        ${d.recommendation.shouldApply ? 'Should Apply' : 'Should Not Apply'}
+                    </p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Key Reasons</p>
+                    ${renderList(d.recommendation.keyReasons)}
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Questions to Ask</p>
+                    ${renderList(d.recommendation.questionsToAsk)}
+                    <div class="flags" style="margin-top:1rem">
+                        ${(d.recommendation.greenFlags || []).map(f => `<span class="flag green">${f}</span>`).join('')}
+                        ${(d.recommendation.redFlags || []).map(f => `<span class="flag red">${f}</span>`).join('')}
+                    </div>
+                </div>
+
+                <div class="card section">
+                    <h3>Honest Assessment</h3>
+                    <div class="assessment">${d.honestAssessment}</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

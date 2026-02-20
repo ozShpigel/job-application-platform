@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+WORKDIR /src
+COPY EmailSync/ EmailSync/
+RUN dotnet publish EmailSync/ApplicationTracker.EmailSync.csproj -c Release -o /app
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine
+RUN apk add --no-cache dcron
+WORKDIR /app
+COPY --from=build /app .
+COPY EmailSync/crontab /etc/crontabs/root
+ENTRYPOINT ["crond", "-f"]

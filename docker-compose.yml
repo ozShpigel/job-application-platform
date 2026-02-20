@@ -1,0 +1,32 @@
+services:
+  job-match-service:
+    build:
+      context: .
+      dockerfile: JobMatchService/Dockerfile
+    ports:
+      - "5136:8080"
+    environment:
+      - ApplicationTracker__BaseUrl=http://application-tracker:8080
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
+
+  application-tracker:
+    build:
+      context: .
+      dockerfile: ApplicationTracker/Dockerfile
+    ports:
+      - "5002:8080"
+
+  email-sync:
+    build:
+      context: .
+      dockerfile: EmailSync/Dockerfile
+    environment:
+      - Tracker__BaseUrl=http://application-tracker:8080
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:80"
