@@ -16,7 +16,7 @@ export default function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>Job Application Platform</h1>
-        <p style={styles.subtitle}>Your AI-powered job search toolkit</p>
+        <p style={styles.subtitle}>Your AI-powered job search toolkit — v0.1.0</p>
       </header>
 
       <main style={styles.grid}>
