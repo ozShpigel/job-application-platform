@@ -1,20 +1,59 @@
 using ApplicationTracker.Core.Models;
-using ApplicationTracker.Infrastructure.Database;
 using ApplicationTracker.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database
-builder.Services.AddDbContext<TrackerDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+// MongoDB
+var connectionString = builder.Configuration["MongoDB:ConnectionString"]
+    ?? throw new InvalidOperationException("MongoDB:ConnectionString is not configured.");
+var databaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "job-tracker";
+
+builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
+builder.Services.AddSingleton(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    return client.GetDatabase(databaseName);
+});
+
+builder.Services.AddSingleton(sp =>
+{
+    var database = sp.GetRequiredService<IMongoDatabase>();
+    return database.GetCollection<Application>("applications");
+});
+builder.Services.AddSingleton(sp =>
+{
+    var database = sp.GetRequiredService<IMongoDatabase>();
+    return database.GetCollection<Interview>("interviews");
+});
+builder.Services.AddSingleton(sp =>
+{
+    var database = sp.GetRequiredService<IMongoDatabase>();
+    return database.GetCollection<Note>("notes");
+});
+builder.Services.AddSingleton(sp =>
+{
+    var database = sp.GetRequiredService<IMongoDatabase>();
+    return database.GetCollection<StatusUpdate>("statusUpdates");
+});
 
 // Repositories
-builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
-builder.Services.AddScoped<IInterviewRepository, InterviewRepository>();
-builder.Services.AddScoped<INoteRepository, NoteRepository>();
+builder.Services.AddScoped<IApplicationRepository>(sp =>
+{
+    var apps = sp.GetRequiredService<IMongoCollection<Application>>();
+    var interviews = sp.GetRequiredService<IMongoCollection<Interview>>();
+    var notes = sp.GetRequiredService<IMongoCollection<Note>>();
+    var statusUpdates = sp.GetRequiredService<IMongoCollection<StatusUpdate>>();
+    return new ApplicationRepository(apps, interviews, notes, statusUpdates);
+});
+builder.Services.AddScoped<IInterviewRepository>(sp =>
+    new InterviewRepository(sp.GetRequiredService<IMongoCollection<Interview>>()));
+builder.Services.AddScoped<INoteRepository>(sp =>
+    new NoteRepository(sp.GetRequiredService<IMongoCollection<Note>>()));
+builder.Services.AddScoped<IStatusUpdateRepository>(sp =>
+    new StatusUpdateRepository(sp.GetRequiredService<IMongoCollection<StatusUpdate>>()));
 
 // JSON: accept enum values as strings
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -34,13 +73,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Ensure database is created
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<TrackerDbContext>();
-    db.Database.EnsureCreated();
-}
-
 // Middleware
 app.UseCors();
 app.UseDefaultFiles();
@@ -59,7 +91,7 @@ if (app.Environment.IsDevelopment())
 app.MapPost("/api/applications", async (
     [FromBody] Application application,
     IApplicationRepository repo,
-    TrackerDbContext db,
+    IStatusUpdateRepository statusRepo,
     ILogger<Program> logger,
     CancellationToken ct) =>
 {
@@ -67,15 +99,13 @@ app.MapPost("/api/applications", async (
     {
         var created = await repo.CreateAsync(application, ct);
 
-        // Record initial status
-        db.StatusUpdates.Add(new StatusUpdate
+        await statusRepo.CreateAsync(new StatusUpdate
         {
             ApplicationId = created.Id,
             FromStatus = ApplicationStatus.Analyzing,
             ToStatus = created.Status,
             Note = "משרה נוספה למעקב"
-        });
-        await db.SaveChangesAsync(ct);
+        }, ct);
 
         logger.LogInformation("Application created: {Id} - {Title} at {Company}", created.Id, created.JobTitle, created.Company);
         return Results.Created($"/api/applications/{created.Id}", created);
@@ -104,7 +134,7 @@ app.MapGet("/api/applications/{id:guid}", async (
     IApplicationRepository appRepo,
     IInterviewRepository interviewRepo,
     INoteRepository noteRepo,
-    TrackerDbContext db,
+    IStatusUpdateRepository statusRepo,
     CancellationToken ct) =>
 {
     var application = await appRepo.GetByIdAsync(id, ct);
@@ -112,10 +142,7 @@ app.MapGet("/api/applications/{id:guid}", async (
 
     var interviews = await interviewRepo.GetByApplicationIdAsync(id, ct);
     var notes = await noteRepo.GetByApplicationIdAsync(id, ct);
-    var statusUpdates = await db.StatusUpdates.AsNoTracking()
-        .Where(s => s.ApplicationId == id)
-        .OrderBy(s => s.Timestamp)
-        .ToListAsync(ct);
+    var statusUpdates = await statusRepo.GetByApplicationIdAsync(id, ct);
 
     return Results.Ok(new
     {
@@ -132,7 +159,7 @@ app.MapPut("/api/applications/{id:guid}/status", async (
     Guid id,
     [FromBody] StatusUpdateRequest request,
     IApplicationRepository repo,
-    TrackerDbContext db,
+    IStatusUpdateRepository statusRepo,
     ILogger<Program> logger,
     CancellationToken ct) =>
 {
@@ -149,19 +176,15 @@ app.MapPut("/api/applications/{id:guid}/status", async (
             AppliedAt = request.NewStatus == ApplicationStatus.Applied ? DateTime.UtcNow : app.AppliedAt
         };
 
-        // EF Core needs us to detach and re-attach for records
-        db.Entry(app).State = EntityState.Detached;
         await repo.UpdateAsync(updated, ct);
 
-        // Record status change
-        db.StatusUpdates.Add(new StatusUpdate
+        await statusRepo.CreateAsync(new StatusUpdate
         {
             ApplicationId = id,
             FromStatus = oldStatus,
             ToStatus = request.NewStatus,
             Note = request.Note
-        });
-        await db.SaveChangesAsync(ct);
+        }, ct);
 
         logger.LogInformation("Application {Id} status changed: {From} -> {To}", id, oldStatus, request.NewStatus);
         return Results.Ok(updated);
@@ -211,14 +234,12 @@ app.MapPut("/api/interviews/{id:guid}", async (
     Guid id,
     [FromBody] Interview interview,
     IInterviewRepository repo,
-    TrackerDbContext db,
     CancellationToken ct) =>
 {
     var existing = await repo.GetByIdAsync(id, ct);
     if (existing is null) return Results.NotFound();
 
     var updated = interview with { Id = id, ApplicationId = existing.ApplicationId };
-    db.Entry(existing).State = EntityState.Detached;
     await repo.UpdateAsync(updated, ct);
     return Results.Ok(updated);
 })
@@ -261,14 +282,12 @@ app.MapPut("/api/notes/{id:guid}", async (
     Guid id,
     [FromBody] Note note,
     INoteRepository repo,
-    TrackerDbContext db,
     CancellationToken ct) =>
 {
     var existing = await repo.GetByIdAsync(id, ct);
     if (existing is null) return Results.NotFound();
 
     var updated = note with { Id = id, ApplicationId = existing.ApplicationId };
-    db.Entry(existing).State = EntityState.Detached;
     await repo.UpdateAsync(updated, ct);
     return Results.Ok(updated);
 })
@@ -291,10 +310,10 @@ app.MapDelete("/api/notes/{id:guid}", async (
 // ============================================================
 
 app.MapGet("/api/stats", async (
-    TrackerDbContext db,
+    IApplicationRepository repo,
     CancellationToken ct) =>
 {
-    var apps = await db.Applications.AsNoTracking().ToListAsync(ct);
+    var apps = await repo.GetAllAsync(ct);
     var total = apps.Count;
     var withScore = apps.Where(a => a.MatchScore.HasValue).ToList();
     var avgScore = withScore.Count > 0 ? (int)withScore.Average(a => a.MatchScore!.Value) : 0;
@@ -335,23 +354,14 @@ app.MapGet("/api/stats", async (
 
 app.MapGet("/api/applications/{id:guid}/timeline", async (
     Guid id,
-    TrackerDbContext db,
+    IStatusUpdateRepository statusRepo,
+    IInterviewRepository interviewRepo,
+    INoteRepository noteRepo,
     CancellationToken ct) =>
 {
-    var statusUpdates = await db.StatusUpdates.AsNoTracking()
-        .Where(s => s.ApplicationId == id)
-        .OrderBy(s => s.Timestamp)
-        .ToListAsync(ct);
-
-    var interviews = await db.Interviews.AsNoTracking()
-        .Where(i => i.ApplicationId == id)
-        .OrderBy(i => i.ScheduledAt)
-        .ToListAsync(ct);
-
-    var notes = await db.Notes.AsNoTracking()
-        .Where(n => n.ApplicationId == id)
-        .OrderBy(n => n.CreatedAt)
-        .ToListAsync(ct);
+    var statusUpdates = await statusRepo.GetByApplicationIdAsync(id, ct);
+    var interviews = await interviewRepo.GetByApplicationIdAsync(id, ct);
+    var notes = await noteRepo.GetByApplicationIdAsync(id, ct);
 
     var timeline = new List<object>();
 
@@ -376,17 +386,15 @@ app.MapGet("/api/applications/{id:guid}/timeline", async (
 
 app.MapGet("/api/interviews/upcoming", async (
     IInterviewRepository repo,
-    TrackerDbContext db,
+    IApplicationRepository appRepo,
     CancellationToken ct) =>
 {
     var interviews = await repo.GetUpcomingAsync(10, ct);
 
-    // Enrich with application info
     var result = new List<object>();
     foreach (var interview in interviews)
     {
-        var app = await db.Applications.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == interview.ApplicationId, ct);
+        var app = await appRepo.GetByIdAsync(interview.ApplicationId, ct);
         result.Add(new
         {
             interview,

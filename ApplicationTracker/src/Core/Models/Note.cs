@@ -1,7 +1,11 @@
+using MongoDB.Bson.Serialization.Attributes;
+
 namespace ApplicationTracker.Core.Models;
 
 public sealed record Note
 {
+    [BsonId]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; init; } = Guid.NewGuid();
     public required Guid ApplicationId { get; init; }
     public required string Content { get; init; }

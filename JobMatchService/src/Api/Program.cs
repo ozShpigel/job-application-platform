@@ -10,9 +10,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Set content root to the repo root (where Templates/, Config/, Skills/, Data/ live)
-var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-builder.Configuration["ContentRoot"] = repoRoot;
+builder.Configuration["ContentRoot"] = AppContext.BaseDirectory;
 
 // Add services to the container
 builder.Services.AddSingleton<PromptBuilder>();

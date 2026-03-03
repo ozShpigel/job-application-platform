@@ -1,10 +1,15 @@
+using MongoDB.Bson.Serialization.Attributes;
+
 namespace ApplicationTracker.Core.Models;
 
 public sealed record Application
 {
+    [BsonId]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; init; } = Guid.NewGuid();
     public required string JobTitle { get; init; }
     public required string Company { get; init; }
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public required ApplicationStatus Status { get; init; }
     public int? MatchScore { get; init; }
     public string? MatchVerdict { get; init; }
