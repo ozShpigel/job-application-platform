@@ -7,6 +7,7 @@ public sealed record Interview
     [BsonId]
     [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public Guid Id { get; init; } = Guid.NewGuid();
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public required Guid ApplicationId { get; init; }
     public required DateTime ScheduledAt { get; init; }
     public required string Type { get; init; } // "Phone", "Technical", "Final", "HR"
