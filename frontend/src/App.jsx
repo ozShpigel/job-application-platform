@@ -7,7 +7,7 @@ const services = [
   {
     name: 'Application Tracker',
     description: 'Track your job applications, interviews, and status updates.',
-    path: '/applications/',
+    path: 'https://application-tracker-latest-b8l9.onrender.com/',
   },
 ];
 
