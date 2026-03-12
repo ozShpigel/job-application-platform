@@ -18,6 +18,7 @@ public sealed class GmailEmailService : IGmailEmailService
 {
     private readonly GmailService _gmail;
     private readonly ILogger<GmailEmailService> _logger;
+    private readonly string? _query;
 
     public GmailEmailService(IConfiguration config, IHostEnvironment env, ILogger<GmailEmailService> logger)
     {
@@ -44,19 +45,31 @@ public sealed class GmailEmailService : IGmailEmailService
             ApplicationName = "ApplicationTracker.EmailSync"
         });
 
+        _query = config["Gmail:Query"];
+
         _logger.LogInformation("Gmail service initialized");
     }
 
     public async Task<List<EmailMessage>> GetEmailsFromLast24HoursAsync(CancellationToken ct = default)
     {
-        // Only get emails from last 24 hours
         var yesterday = DateTime.UtcNow.AddHours(-24);
         var yesterdayFormatted = yesterday.ToString("yyyy/MM/dd");
 
-        _logger.LogInformation("Fetching emails since {Date} (last 24 hours)", yesterday);
+        var effectiveQuery = string.IsNullOrWhiteSpace(_query)
+            ? $"after:{yesterdayFormatted}"
+            : _query;
+
+        if (string.IsNullOrWhiteSpace(_query))
+        {
+            _logger.LogInformation("Fetching emails since {Date} (last 24 hours) with default query: {Query}", yesterday, effectiveQuery);
+        }
+        else
+        {
+            _logger.LogInformation("Fetching emails using configured Gmail query: {Query}", effectiveQuery);
+        }
 
         var request = _gmail.Users.Messages.List("me");
-        request.Q = $"after:{yesterdayFormatted}";
+        request.Q = effectiveQuery;
 
         var response = await request.ExecuteAsync(ct);
 
