@@ -24,9 +24,38 @@ public sealed class GmailEmailService : IGmailEmailService
     {
         _logger = logger;
 
-        // Resolve credentials path relative to the content root (where the exe lives)
-        var relativePath = config["Gmail:CredentialsPath"] ?? "credentials.json";
-        var credentialPath = Path.Combine(env.ContentRootPath, relativePath);
+        // Choose credentials path in order of preference:
+        // 1. Explicit Gmail:CredentialsPath config (absolute or relative)
+        // 2. Render secret file at /etc/secrets/credentials.json
+        // 3. Local credentials.json next to the executable (content root)
+        var configuredPath = config["Gmail:CredentialsPath"];
+        var secretPath = "/etc/secrets/credentials.json";
+        var localPath = Path.Combine(env.ContentRootPath, "credentials.json");
+
+        string credentialPath;
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            credentialPath = Path.IsPathRooted(configuredPath)
+                ? configuredPath
+                : Path.Combine(env.ContentRootPath, configuredPath);
+            _logger.LogInformation("Using configured Gmail credentials path: {Path}", credentialPath);
+        }
+        else if (File.Exists(secretPath))
+        {
+            credentialPath = secretPath;
+            _logger.LogInformation("Using Gmail credentials from secret path: {Path}", credentialPath);
+        }
+        else
+        {
+            credentialPath = localPath;
+            _logger.LogInformation("Using Gmail credentials from local path: {Path}", credentialPath);
+        }
+
+        if (!File.Exists(credentialPath))
+        {
+            throw new FileNotFoundException($"Gmail credentials file not found at '{credentialPath}'. " +
+                                            "Ensure credentials.json is mounted as a secret or provide Gmail:CredentialsPath.");
+        }
 
         UserCredential credential;
         using (var stream = new FileStream(credentialPath, FileMode.Open, FileAccess.Read))
