@@ -1,12 +1,14 @@
 using ApplicationTracker.EmailSync.Models;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2.Flows;
+using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
-using Google.Apis.Util.Store;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace ApplicationTracker.EmailSync.Services;
 
@@ -57,15 +59,41 @@ public sealed class GmailEmailService : IGmailEmailService
                                             "Ensure credentials.json is mounted as a secret or provide Gmail:CredentialsPath.");
         }
 
+        var tokenSecretPath = "/etc/secrets/gmail-token.json";
         UserCredential credential;
+
         using (var stream = new FileStream(credentialPath, FileMode.Open, FileAccess.Read))
         {
-            credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-                GoogleClientSecrets.FromStream(stream).Secrets,
-                new[] { GmailService.Scope.GmailReadonly },
-                "user",
-                CancellationToken.None,
-                new FileDataStore("token.json", true)).Result;
+            var clientSecrets = GoogleClientSecrets.FromStream(stream);
+
+            if (File.Exists(tokenSecretPath))
+            {
+                _logger.LogInformation("Using Gmail token from secret path: {Path}", tokenSecretPath);
+
+                var tokenJson = File.ReadAllText(tokenSecretPath);
+                var token = JsonSerializer.Deserialize<TokenResponse>(tokenJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? throw new InvalidOperationException("Failed to deserialize Gmail token from secret.");
+
+                var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
+                {
+                    ClientSecrets = clientSecrets.Secrets,
+                    Scopes = new[] { GmailService.Scope.GmailReadonly }
+                });
+
+                credential = new UserCredential(flow, "user", token);
+            }
+            else
+            {
+                _logger.LogInformation("Gmail token secret not found, falling back to interactive authorization.");
+
+                credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                    clientSecrets.Secrets,
+                    new[] { GmailService.Scope.GmailReadonly },
+                    "user",
+                    CancellationToken.None).Result;
+            }
         }
 
         _gmail = new GmailService(new BaseClientService.Initializer
