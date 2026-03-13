@@ -71,10 +71,26 @@ public sealed class GmailEmailService : IGmailEmailService
                 _logger.LogInformation("Using Gmail token from secret path: {Path}", tokenSecretPath);
 
                 var tokenJson = File.ReadAllText(tokenSecretPath);
-                var token = JsonSerializer.Deserialize<TokenResponse>(tokenJson, new JsonSerializerOptions
+
+                // System.Text.Json PropertyNameCaseInsensitive does NOT handle snake_case → PascalCase mapping.
+                // TokenResponse JSON uses snake_case keys (refresh_token, access_token) so we read them manually.
+                var doc = JsonDocument.Parse(tokenJson);
+                var root = doc.RootElement;
+
+                var token = new TokenResponse
                 {
-                    PropertyNameCaseInsensitive = true
-                }) ?? throw new InvalidOperationException("Failed to deserialize Gmail token from secret.");
+                    AccessToken = root.TryGetProperty("access_token", out var at) ? at.GetString() : null,
+                    RefreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null,
+                    TokenType = root.TryGetProperty("token_type", out var tt) ? tt.GetString() : null,
+                    ExpiresInSeconds = root.TryGetProperty("expires_in", out var ei) ? ei.GetInt64() : null,
+                    Scope = root.TryGetProperty("scope", out var sc) ? sc.GetString() : null,
+                    IssuedUtc = DateTime.UtcNow.AddDays(-1)
+                };
+
+                if (string.IsNullOrWhiteSpace(token.RefreshToken))
+                    throw new InvalidOperationException($"Gmail token at '{tokenSecretPath}' has no refresh_token. Re-run the OAuth flow locally and update the secret.");
+
+                _logger.LogInformation("Loaded Gmail token. RefreshToken present: {Present}", !string.IsNullOrEmpty(token.RefreshToken));
 
                 var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
                 {
