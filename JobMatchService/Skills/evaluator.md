@@ -167,3 +167,4 @@ Return valid JSON matching this exact schema:
 - ALWAYS verify score = sum of category scores
 - ALWAYS align verdict with score ranges
 - ALWAYS provide specific, actionable questions
+- ALWAYS write ALL string values in Hebrew (strengths, gaps, signals, concerns, opportunities, risks, keyReasons, questionsToAsk, redFlags, greenFlags, honestAssessment). JSON keys stay in English.

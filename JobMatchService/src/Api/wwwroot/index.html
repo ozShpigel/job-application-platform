@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job Match Service</title>
+    <title>שירות התאמת משרות</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        body { font-family: 'Segoe UI', 'Rubik', 'Noto Sans Hebrew', -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; direction: rtl; }
         .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
         h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #f8fafc; }
         .subtitle { color: #94a3b8; margin-bottom: 2rem; font-size: 0.9rem; }
@@ -35,8 +35,8 @@
         .bar-fill.yellow { background: #fbbf24; }
         .bar-fill.red { background: #f87171; }
         .label { min-width: 140px; font-size: 0.85rem; color: #94a3b8; }
-        .score-num { font-size: 0.85rem; color: #cbd5e1; min-width: 50px; text-align: right; }
-        ul { padding-left: 1.25rem; margin-top: 0.5rem; }
+        .score-num { font-size: 0.85rem; color: #cbd5e1; min-width: 50px; text-align: left; }
+        ul { padding-right: 1.25rem; padding-left: 0; margin-top: 0.5rem; }
         li { font-size: 0.85rem; margin-bottom: 0.35rem; color: #cbd5e1; }
         li.positive::marker { color: #4ade80; }
         li.negative::marker { color: #f87171; }
@@ -52,7 +52,7 @@
         .save-tracker input[type="text"] { width: 100%; padding: 0.6rem 0.8rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 0.9rem; }
         .save-tracker input[type="text"]:focus { border-color: #6366f1; outline: none; }
         .save-tracker label.radio { display: block; padding: 0.5rem 0; color: #cbd5e1; font-size: 0.9rem; cursor: pointer; }
-        .save-tracker input[type="radio"] { margin-left: 0.5rem; }
+        .save-tracker input[type="radio"] { margin-left: 0.5rem; margin-right: 0; }
         .save-tracker .save-btn { background: #059669; padding: 0.7rem 1.75rem; font-size: 0.95rem; }
         .save-tracker .save-btn:hover { background: #047857; }
         .save-result { margin-top: 0.75rem; font-size: 0.9rem; }
@@ -64,11 +64,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>Job Match Service</h1>
-        <p class="subtitle">Paste a job description below to analyze the match</p>
+        <h1>שירות התאמת משרות</h1>
+        <p class="subtitle">הדביקו תיאור משרה למטה לניתוח התאמה</p>
 
-        <textarea id="jobDescription" placeholder="Paste the full job description here..."></textarea>
-        <button id="analyzeBtn" onclick="analyze()">Analyze Match</button>
+        <textarea id="jobDescription" placeholder="הדביקו כאן את תיאור המשרה המלא..."></textarea>
+        <button id="analyzeBtn" onclick="analyze()">ניתוח התאמה</button>
 
         <div id="result" class="result"></div>
     </div>
@@ -87,8 +87,8 @@
             const btn = document.getElementById('analyzeBtn');
             const result = document.getElementById('result');
             btn.disabled = true;
-            btn.textContent = 'Analyzing...';
-            result.innerHTML = '<p class="loading">Calling Claude API... this takes 15-30 seconds</p>';
+            btn.textContent = 'מנתח...';
+            result.innerHTML = '<p class="loading">קורא ל-Claude API... זה לוקח 15-30 שניות</p>';
 
             try {
                 const res = await fetch('api/match', {
@@ -110,35 +110,35 @@
                 result.innerHTML = `<div class="error">Error: ${e.message}</div>`;
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Analyze Match';
+                btn.textContent = 'ניתוח התאמה';
             }
         }
 
         function renderSaveToTracker() {
             return `
                 <div class="save-tracker" id="saveSection">
-                    <h3>Save to Application Tracker</h3>
-                    <p>Save this job to your tracker for follow-up</p>
+                    <h3>שמירה במעקב מועמדויות</h3>
+                    <p>שמרו משרה זו במעקב למעקב המשך</p>
                     <div class="form-row">
                         <div>
-                            <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.3rem">Job Title</label>
-                            <input type="text" id="save-title" placeholder="Job title" value="${currentAnalysis?.jobTitle || ''}">
+                            <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.3rem">תפקיד</label>
+                            <input type="text" id="save-title" placeholder="שם התפקיד" value="${currentAnalysis?.jobTitle || ''}">
                         </div>
                         <div>
-                            <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.3rem">Company</label>
-                            <input type="text" id="save-company" placeholder="Company name" value="${currentAnalysis?.company || ''}">
+                            <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.3rem">חברה</label>
+                            <input type="text" id="save-company" placeholder="שם החברה" value="${currentAnalysis?.company || ''}">
                         </div>
                     </div>
                     <label class="radio">
                         <input type="radio" name="saveStatus" value="analyzing" checked>
-                        Just analyzed (haven't applied yet)
+                        רק ניתחתי (עוד לא שלחתי קו"ח)
                     </label>
                     <label class="radio">
                         <input type="radio" name="saveStatus" value="applied">
-                        Already sent CV
+                        כבר שלחתי קו"ח
                     </label>
                     <br>
-                    <button class="save-btn" onclick="saveToTracker()">Save to Tracker</button>
+                    <button class="save-btn" onclick="saveToTracker()">שמירה במעקב</button>
                     <div id="saveResult" class="save-result"></div>
                 </div>
             `;
@@ -151,13 +151,13 @@
 
             if (!title || !company) {
                 resultDiv.className = 'save-result error';
-                resultDiv.textContent = 'Please fill in job title and company';
+                resultDiv.textContent = 'נא למלא תפקיד וחברה';
                 return;
             }
 
             const cvSent = document.querySelector('input[name="saveStatus"]:checked').value === 'applied';
             resultDiv.className = 'save-result';
-            resultDiv.textContent = 'Saving...';
+            resultDiv.textContent = 'שומר...';
 
             try {
                 const res = await fetch('api/match/save-to-tracker', {
@@ -184,15 +184,20 @@
                 if (res.ok) {
                     const data = await res.json();
                     resultDiv.className = 'save-result success';
-                    resultDiv.innerHTML = `${data.message} &nbsp; <a class="tracker-link" href="http://localhost:5002" target="_blank">Open Tracker</a>`;
+                    resultDiv.innerHTML = `${data.message} &nbsp; <a class="tracker-link" href="https://application-tracker-latest-b8l9.onrender.com/" target="_blank">פתיחת מעקב</a>`;
                 } else {
                     resultDiv.className = 'save-result error';
-                    resultDiv.textContent = 'Error saving. Make sure ApplicationTracker is running on port 5002.';
+                    resultDiv.textContent = 'שגיאה בשמירה. ודאו ש-ApplicationTracker פעיל.';
                 }
             } catch (e) {
                 resultDiv.className = 'save-result error';
-                resultDiv.textContent = 'Cannot connect to ApplicationTracker. Make sure it is running on http://localhost:5002';
+                resultDiv.textContent = 'לא ניתן להתחבר ל-ApplicationTracker. ודאו שהוא פעיל.';
             }
+        }
+
+        function verdictHe(v) {
+            const map = { STRONG_YES: 'בהחלט כן', YES: 'כן', MAYBE: 'אולי', NO: 'לא', STRONG_NO: 'בהחלט לא', INSUFFICIENT_DATA: 'אין מספיק נתונים' };
+            return map[v] || v;
         }
 
         function barColor(score, max) {
@@ -225,49 +230,49 @@
             const b = d.breakdown;
             return `
                 <div class="card">
-                    <div class="verdict ${d.verdict}">${d.verdict.replace('_', ' ')}</div>
-                    <div class="score">Overall Score: ${d.overallScore ?? 'N/A'} / 100</div>
+                    <div class="verdict ${d.verdict}">${verdictHe(d.verdict)}</div>
+                    <div class="score">ציון כולל: ${d.overallScore ?? 'N/A'} / 100</div>
                 </div>
 
                 <div class="card">
-                    <h3>Breakdown</h3>
-                    ${renderScoreBar('Technical', b.technical.score, b.technical.maxScore)}
-                    ${renderScoreBar('Cultural', b.cultural.score, b.cultural.maxScore)}
-                    ${renderScoreBar('Role Fit', b.roleCharacteristics.score, b.roleCharacteristics.maxScore)}
+                    <h3>פירוט</h3>
+                    ${renderScoreBar('טכני', b.technical.score, b.technical.maxScore)}
+                    ${renderScoreBar('תרבותי', b.cultural.score, b.cultural.maxScore)}
+                    ${renderScoreBar('התאמה לתפקיד', b.roleCharacteristics.score, b.roleCharacteristics.maxScore)}
                 </div>
 
                 <div class="card section">
-                    <h3>Technical</h3>
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Strengths</p>
+                    <h3>טכני</h3>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">חוזקות</p>
                     ${renderList(b.technical.strengths, 'positive')}
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Gaps</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">פערים</p>
                     ${renderList(b.technical.gaps, 'negative')}
                 </div>
 
                 <div class="card section">
-                    <h3>Cultural</h3>
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Positive Signals</p>
+                    <h3>תרבותי</h3>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">סימנים חיוביים</p>
                     ${renderList(b.cultural.positiveSignals, 'positive')}
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Concerns</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">חששות</p>
                     ${renderList(b.cultural.concerns, 'negative')}
                 </div>
 
                 <div class="card section">
-                    <h3>Role Characteristics</h3>
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Opportunities</p>
+                    <h3>מאפייני התפקיד</h3>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">הזדמנויות</p>
                     ${renderList(b.roleCharacteristics.opportunities, 'positive')}
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Risks</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">סיכונים</p>
                     ${renderList(b.roleCharacteristics.risks, 'negative')}
                 </div>
 
                 <div class="card section">
-                    <h3>Recommendation</h3>
+                    <h3>המלצה</h3>
                     <p style="font-size:0.95rem;font-weight:600;color:${d.recommendation.shouldApply ? '#4ade80' : '#f87171'};margin-bottom:0.75rem">
-                        ${d.recommendation.shouldApply ? 'Should Apply' : 'Should Not Apply'}
+                        ${d.recommendation.shouldApply ? 'כדאי להגיש' : 'לא כדאי להגיש'}
                     </p>
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">Key Reasons</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem">סיבות מרכזיות</p>
                     ${renderList(d.recommendation.keyReasons)}
-                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">Questions to Ask</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin-top:0.75rem;margin-bottom:0.5rem">שאלות לראיון</p>
                     ${renderList(d.recommendation.questionsToAsk)}
                     <div class="flags" style="margin-top:1rem">
                         ${(d.recommendation.greenFlags || []).map(f => `<span class="flag green">${f}</span>`).join('')}
@@ -276,7 +281,7 @@
                 </div>
 
                 <div class="card section">
-                    <h3>Honest Assessment</h3>
+                    <h3>הערכה כנה</h3>
                     <div class="assessment">${d.honestAssessment}</div>
                 </div>
             `;
