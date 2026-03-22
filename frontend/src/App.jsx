@@ -1,12 +1,13 @@
 const services = [
   {
-    name: 'Job Match Service',
-    description: 'Analyze job opportunities against your professional profile using AI.',
+    name: 'שירות התאמת משרות',
+    description:
+      'ניתוח הזדמנויות עבודה ביחס לפרופיל המקצועי שלך באמצעות בינה מלאכותית.',
     path: '/job-match/',
   },
   {
-    name: 'Application Tracker',
-    description: 'Track your job applications, interviews, and status updates.',
+    name: 'מעקב מועמדויות',
+    description: 'מעקב אחר מועמדויות לעבודה, ראיונות ועדכוני סטטוס.',
     path: 'https://application-tracker-latest-b8l9.onrender.com/',
   },
 ];
@@ -15,8 +16,8 @@ export default function App() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>Job Application Platform</h1>
-        <p style={styles.subtitle}>Your AI-powered job search toolkit — v0.1.0</p>
+        <h1 style={styles.title}>פלטפורמת חיפוש עבודה</h1>
+        <p style={styles.subtitle}>ערכת כלים לחיפוש עבודה מבוססת בינה מלאכותית — גרסה 0.1.0</p>
       </header>
 
       <main style={styles.grid}>
@@ -30,13 +31,13 @@ export default function App() {
           >
             <h2 style={styles.cardTitle}>{svc.name}</h2>
             <p style={styles.cardDesc}>{svc.description}</p>
-            <span style={styles.cardLink}>Open &rarr;</span>
+            <span style={styles.cardLink}>פתיחה &larr;</span>
           </a>
         ))}
       </main>
 
       <footer style={styles.footer}>
-        <p>&copy; 2026 Job Application Platform</p>
+        <p>&copy; 2026 פלטפורמת חיפוש עבודה</p>
       </footer>
     </div>
   );
@@ -45,7 +46,9 @@ export default function App() {
 const styles = {
   container: {
     minHeight: '100vh',
-    fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
+    direction: 'rtl',
+    fontFamily:
+      "'Segoe UI', 'Rubik', 'Noto Sans Hebrew', 'Arial Hebrew', system-ui, -apple-system, sans-serif",
     background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
     color: '#e2e8f0',
     display: 'flex',
