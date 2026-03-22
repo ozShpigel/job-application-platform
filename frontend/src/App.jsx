@@ -1,14 +1,9 @@
-// Production: set VITE_JOB_MATCH_URL on Render (Environment → Build) to your Job Match web
-// service URL, e.g. https://job-match-xxxx.onrender.com — avoids nginx proxy issues and 429s.
-const jobMatchHref =
-  import.meta.env.VITE_JOB_MATCH_URL?.trim().replace(/\/$/, '') || '';
-
 const services = [
   {
     name: 'שירות התאמת משרות',
     description:
       'ניתוח הזדמנויות עבודה ביחס לפרופיל המקצועי שלך באמצעות בינה מלאכותית.',
-    path: jobMatchHref ? `${jobMatchHref}/` : '/job-match/',
+    path: 'https://job-match-service-latest.onrender.com/',
   },
   {
     name: 'מעקב מועמדויות',
