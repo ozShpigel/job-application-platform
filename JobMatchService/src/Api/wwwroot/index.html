@@ -91,7 +91,7 @@
             result.innerHTML = '<p class="loading">Calling Claude API... this takes 15-30 seconds</p>';
 
             try {
-                const res = await fetch('/api/match', {
+                const res = await fetch('api/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ jobDescription: desc })
@@ -160,7 +160,7 @@
             resultDiv.textContent = 'Saving...';
 
             try {
-                const res = await fetch('/api/match/save-to-tracker', {
+                const res = await fetch('api/match/save-to-tracker', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
