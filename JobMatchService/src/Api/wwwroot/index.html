@@ -138,16 +138,32 @@
                         כבר שלחתי קו"ח
                     </label>
                     <br>
-                    <button class="save-btn" onclick="saveToTracker()">שמירה במעקב</button>
+                    <button type="button" class="save-btn" id="saveTrackerBtn" onclick="saveToTracker()">שמירה במעקב</button>
                     <div id="saveResult" class="save-result"></div>
                 </div>
             `;
+        }
+
+        async function waitForTrackerReady(resultDiv, maxWaitMs, intervalMs) {
+            const start = Date.now();
+            while (Date.now() - start < maxWaitMs) {
+                try {
+                    const r = await fetch('api/match/tracker-ready', { method: 'GET' });
+                    if (r.ok) return true;
+                } catch (_) { /* cold start / network */ }
+                const elapsedSec = Math.floor((Date.now() - start) / 1000);
+                resultDiv.className = 'save-result';
+                resultDiv.textContent = `מעירים את שירות המעקב... (${elapsedSec} שניות)`;
+                await new Promise((resolve) => setTimeout(resolve, intervalMs));
+            }
+            return false;
         }
 
         async function saveToTracker() {
             const title = document.getElementById('save-title').value.trim();
             const company = document.getElementById('save-company').value.trim();
             const resultDiv = document.getElementById('saveResult');
+            const saveBtn = document.getElementById('saveTrackerBtn');
 
             if (!title || !company) {
                 resultDiv.className = 'save-result error';
@@ -157,9 +173,19 @@
 
             const cvSent = document.querySelector('input[name="saveStatus"]:checked').value === 'applied';
             resultDiv.className = 'save-result';
-            resultDiv.textContent = 'שומר...';
+            resultDiv.textContent = 'בודקים זמינות שירות המעקב...';
+            if (saveBtn) saveBtn.disabled = true;
 
             try {
+                const ready = await waitForTrackerReady(resultDiv, 120000, 4000);
+                if (!ready) {
+                    resultDiv.className = 'save-result error';
+                    resultDiv.textContent = 'שירות המעקב לא נענה בזמן (עד שתי דקות). נסו שוב או פתחו את המעקב בדפדפן כדי להעיר אותו.';
+                    return;
+                }
+
+                resultDiv.textContent = 'שומר...';
+
                 const res = await fetch('api/match/save-to-tracker', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -192,6 +218,8 @@
             } catch (e) {
                 resultDiv.className = 'save-result error';
                 resultDiv.textContent = 'לא ניתן להתחבר ל-ApplicationTracker. ודאו שהוא פעיל.';
+            } finally {
+                if (saveBtn) saveBtn.disabled = false;
             }
         }
 

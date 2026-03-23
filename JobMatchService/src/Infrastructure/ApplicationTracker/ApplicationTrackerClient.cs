@@ -14,6 +14,21 @@ public sealed class ApplicationTrackerClient : IApplicationTrackerClient
         _logger = logger;
     }
 
+    public async Task<bool> IsTrackerHealthyAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/health");
+            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Application Tracker health check failed");
+            return false;
+        }
+    }
+
     public async Task<bool> CreateApplicationAsync(CreateApplicationRequest request, CancellationToken ct = default)
     {
         return await RetryAsync(async () =>

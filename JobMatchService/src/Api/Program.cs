@@ -23,7 +23,7 @@ builder.Services.AddHttpClient<IApplicationTrackerClient, ApplicationTrackerClie
 {
     client.BaseAddress = new Uri(builder.Configuration["ApplicationTracker:BaseUrl"]
         ?? "http://localhost:5002");
-    client.Timeout = TimeSpan.FromSeconds(10);
+    client.Timeout = TimeSpan.FromSeconds(25);
 });
 
 // Add OpenAPI
@@ -86,6 +86,18 @@ app.MapPost("/api/match", async (
 .WithName("AnalyzeJobMatch")
 .WithSummary("Analyze job match")
 .WithDescription("Analyzes a job description and returns a detailed match assessment");
+
+app.MapGet("/api/match/tracker-ready", async (
+    IApplicationTrackerClient trackerClient,
+    CancellationToken ct) =>
+{
+    var ok = await trackerClient.IsTrackerHealthyAsync(ct);
+    return ok
+        ? Results.Ok(new { ready = true })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+})
+.WithName("TrackerReady")
+.WithSummary("Returns 200 when Application Tracker responds (for cold-start polling from the UI)");
 
 // Save to Application Tracker endpoint
 app.MapPost("/api/match/save-to-tracker", async (

@@ -78,6 +78,10 @@ app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+    .WithName("Health")
+    .WithSummary("Liveness probe for orchestration and Job Match wake-up checks");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
