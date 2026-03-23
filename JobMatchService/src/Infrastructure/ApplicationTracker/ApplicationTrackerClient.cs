@@ -16,7 +16,7 @@ public sealed class ApplicationTrackerClient : IApplicationTrackerClient
 
     public async Task<bool> CreateApplicationAsync(CreateApplicationRequest request, CancellationToken ct = default)
     {
-        try
+        return await RetryAsync(async () =>
         {
             var response = await _httpClient.PostAsJsonAsync("/api/applications", request, ct);
 
@@ -30,22 +30,12 @@ public sealed class ApplicationTrackerClient : IApplicationTrackerClient
             _logger.LogWarning("Failed to save application to tracker. Status: {Status}",
                 response.StatusCode);
             return false;
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "ApplicationTracker service is not available");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving application to tracker");
-            return false;
-        }
+        }, "CreateApplicationAsync");
     }
 
     public async Task<bool> IsApplicationExistsAsync(string company, string jobTitle, CancellationToken ct = default)
     {
-        try
+        return await RetryAsync(async () =>
         {
             var response = await _httpClient.GetAsync(
                 $"/api/applications/exists?company={Uri.EscapeDataString(company)}&jobTitle={Uri.EscapeDataString(jobTitle)}",
@@ -58,11 +48,30 @@ public sealed class ApplicationTrackerClient : IApplicationTrackerClient
             }
 
             return false;
-        }
-        catch (Exception ex)
+        }, "IsApplicationExistsAsync");
+    }
+
+    private async Task<T> RetryAsync<T>(Func<Task<T>> operation, string operationName, int maxRetries = 3, int delayMs = 1000)
+    {
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            _logger.LogWarning(ex, "Could not check if application exists");
-            return false;
+            try
+            {
+                return await operation();
+            }
+            catch (HttpRequestException ex) when (attempt < maxRetries)
+            {
+                _logger.LogWarning(ex, "{OperationName} attempt {Attempt}/{MaxRetries} failed. Retrying in {DelayMs}ms...",
+                    operationName, attempt, maxRetries, delayMs);
+                await Task.Delay(delayMs, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "{OperationName} failed after {Attempt} attempts", operationName, attempt);
+                return default!;
+            }
         }
+
+        return default!;
     }
 }
