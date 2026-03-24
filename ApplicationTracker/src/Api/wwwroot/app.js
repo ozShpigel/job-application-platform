@@ -93,6 +93,15 @@ async function api(path, options = {}) {
     return res.json();
 }
 
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return '-';
     const d = new Date(dateStr);
@@ -208,12 +217,17 @@ async function loadApplicationList() {
         container.innerHTML = apps.map(a => `
             <div class="app-row" onclick="showDetail('${a.id}')">
                 <div>
-                    <div class="title">${a.jobTitle}</div>
+                    <div class="title">${escapeHtml(a.jobTitle)}</div>
                 </div>
-                <div class="company">${a.company}</div>
+                <div class="company">${escapeHtml(a.company)}</div>
                 <div>${statusBadge(a.status)}</div>
                 <div class="score" style="color:${scoreColor(a.matchScore)}">${a.matchScore ?? '-'}</div>
                 <div class="date">${formatDate(a.createdAt)}</div>
+                <div class="app-row-actions">
+                    <button type="button" class="btn btn-danger btn-sm list-delete-btn"
+                        onclick="event.stopPropagation(); deleteApplication('${a.id}');"
+                        aria-label="מחיקת משרה">מחק</button>
+                </div>
             </div>
         `).join('');
     } catch (e) {
@@ -642,9 +656,13 @@ async function deleteNote(noteId, appId) {
 // ============================================================
 
 async function deleteApplication(id) {
-    if (!confirm('למחוק את המשרה? כל הראיונות וההערות ימחקו גם.')) return;
-    await api(`/applications/${id}`, { method: 'DELETE' });
-    showTab('list');
+    if (!confirm('למחוק את המשרה? כל הראיונות וההערות ימחקו גם כן.')) return;
+    try {
+        await api(`/applications/${id}`, { method: 'DELETE' });
+        showTab('list');
+    } catch (e) {
+        alert('מחיקה נכשלה: ' + e.message);
+    }
 }
 
 // ============================================================

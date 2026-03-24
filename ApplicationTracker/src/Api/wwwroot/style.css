@@ -125,7 +125,7 @@ header .subtitle { color: var(--text-dim); font-size: 0.85rem; }
 /* ---- APPLICATION LIST ---- */
 .app-row {
     display: grid;
-    grid-template-columns: 2fr 1.5fr 1fr 0.8fr 0.5fr;
+    grid-template-columns: 2fr 1.5fr 1fr 0.8fr 0.5fr minmax(3.5rem, auto);
     align-items: center;
     gap: 1rem;
     padding: 0.85rem 1rem;
@@ -138,10 +138,15 @@ header .subtitle { color: var(--text-dim); font-size: 0.85rem; }
 .app-row .company { color: var(--text-dim); font-size: 0.85rem; }
 .app-row .score { font-weight: 600; }
 .app-row .date { color: var(--text-dim); font-size: 0.8rem; }
+.app-row-actions {
+    justify-self: end;
+    cursor: default;
+}
+.app-row-actions .list-delete-btn { cursor: pointer; }
 
 .list-header {
     display: grid;
-    grid-template-columns: 2fr 1.5fr 1fr 0.8fr 0.5fr;
+    grid-template-columns: 2fr 1.5fr 1fr 0.8fr 0.5fr minmax(3.5rem, auto);
     gap: 1rem;
     padding: 0.5rem 1rem;
     font-size: 0.75rem;
