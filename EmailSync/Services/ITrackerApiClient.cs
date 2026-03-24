@@ -4,7 +4,8 @@ namespace ApplicationTracker.EmailSync.Services;
 
 public interface ITrackerApiClient
 {
-    Task<List<TrackerApplication>> GetActiveApplicationsAsync(CancellationToken ct = default);
+    /// <summary>Returns null if the Tracker API could not be reached (timeout, network, etc.). Empty list means success with no active applications.</summary>
+    Task<List<TrackerApplication>?> GetActiveApplicationsAsync(CancellationToken ct = default);
     Task<bool> UpdateApplicationStatusAsync(Guid appId, string newStatus, string? note = null, CancellationToken ct = default);
     Task<bool> AddInterviewAsync(Guid appId, AddInterviewRequest interview, CancellationToken ct = default);
 }

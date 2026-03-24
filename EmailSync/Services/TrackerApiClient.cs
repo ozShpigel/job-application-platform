@@ -28,26 +28,53 @@ public sealed class TrackerApiClient : ITrackerApiClient
         _logger = logger;
     }
 
-    public async Task<List<TrackerApplication>> GetActiveApplicationsAsync(CancellationToken ct = default)
+    public async Task<List<TrackerApplication>?> GetActiveApplicationsAsync(CancellationToken ct = default)
     {
-        try
+        const int maxAttempts = 4;
+        var delay = TimeSpan.FromSeconds(5);
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            _logger.LogInformation("Fetching applications from Tracker API");
+            try
+            {
+                _logger.LogInformation(
+                    "Fetching applications from Tracker API (attempt {Attempt}/{Max})",
+                    attempt, maxAttempts);
 
-            var apps = await _http.GetFromJsonAsync<List<TrackerApplication>>("/api/applications", ct)
-                ?? new List<TrackerApplication>();
+                var apps = await _http.GetFromJsonAsync<List<TrackerApplication>>("/api/applications", ct)
+                    ?? new List<TrackerApplication>();
 
-            // Filter to active applications client-side
-            var active = apps.Where(a => !TerminalStatuses.Contains(a.Status)).ToList();
+                var active = apps.Where(a => !TerminalStatuses.Contains(a.Status)).ToList();
 
-            _logger.LogInformation("Retrieved {Total} applications, {Active} active", apps.Count, active.Count);
-            return active;
+                _logger.LogInformation("Retrieved {Total} applications, {Active} active", apps.Count, active.Count);
+                return active;
+            }
+            catch (Exception ex) when (attempt < maxAttempts && IsTransientTrackerFailure(ex))
+            {
+                _logger.LogWarning(ex,
+                    "Tracker API attempt {Attempt}/{Max} failed (cold start or network); retrying in {Delay}s...",
+                    attempt, maxAttempts, delay.TotalSeconds);
+                await Task.Delay(delay, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get applications from Tracker API");
+                return null;
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get applications from Tracker API");
-            return new List<TrackerApplication>();
-        }
+
+        return null;
+    }
+
+    private static bool IsTransientTrackerFailure(Exception ex)
+    {
+        if (ex is HttpRequestException or TaskCanceledException)
+            return true;
+
+        if (ex is TimeoutException)
+            return true;
+
+        return ex.InnerException != null && IsTransientTrackerFailure(ex.InnerException);
     }
 
     public async Task<bool> UpdateApplicationStatusAsync(Guid appId, string newStatus, string? note = null, CancellationToken ct = default)

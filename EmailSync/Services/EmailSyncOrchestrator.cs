@@ -40,6 +40,15 @@ public sealed class EmailSyncOrchestrator
             // Step 1: Get active applications from Tracker (ONLY these companies!)
             var activeApps = await _tracker.GetActiveApplicationsAsync(ct);
 
+            if (activeApps is null)
+            {
+                const string msg =
+                    "Could not reach Application Tracker (timeout or error). Sync aborted — will not treat as empty.";
+                _logger.LogError("{Message}", msg);
+                result.Errors.Add(msg);
+                return result with { Success = false };
+            }
+
             if (!activeApps.Any())
             {
                 _logger.LogInformation("No active applications to check");

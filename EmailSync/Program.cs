@@ -38,7 +38,7 @@ try
     {
         var trackerUrl = builder.Configuration["Tracker:BaseUrl"] ?? "http://localhost:5002";
         client.BaseAddress = new Uri(trackerUrl);
-        client.Timeout = TimeSpan.FromSeconds(30);
+        client.Timeout = TimeSpan.FromSeconds(120);
     });
 
     var host = builder.Build();
