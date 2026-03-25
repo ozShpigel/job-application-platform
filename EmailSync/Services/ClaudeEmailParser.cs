@@ -23,8 +23,9 @@ public sealed class ClaudeEmailParser : IEmailParser
 
     public ClaudeEmailParser(IConfiguration config, ILogger<ClaudeEmailParser> logger)
     {
-        var apiKey = config["Anthropic:ApiKey"]
-            ?? throw new InvalidOperationException("Anthropic API key not configured. Set Anthropic:ApiKey in appsettings.json");
+        var apiKey = config["Anthropic:ApiKey"]?.Trim();
+        if (string.IsNullOrEmpty(apiKey))
+            throw new InvalidOperationException("Anthropic API key not configured. Set Anthropic:ApiKey or environment variable Anthropic__ApiKey.");
 
         _claude = new AnthropicClient(apiKey);
         _logger = logger;
