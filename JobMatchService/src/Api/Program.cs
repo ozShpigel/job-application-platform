@@ -42,6 +42,10 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "job-match" }))
+    .WithName("Health")
+    .WithSummary("Liveness check for orchestration and smoke tests");
+
 // Job Match endpoint
 app.MapPost("/api/match", async (
     [FromBody] MatchRequest request,
